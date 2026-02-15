@@ -1143,7 +1143,7 @@ func (c *sftpConnection) GetLastActivity() time.Time {
 
 type sftpConnectionsCache struct {
 	scheduler *cron.Cron
-	sync.RWMutex
+	sync.Mutex
 	items map[string]*sftpConnection
 }
 
@@ -1196,30 +1196,24 @@ func (c *sftpConnectionsCache) Get(config *SFTPFsConfig, sessionID string) (*sft
 	}
 }
 
-func (c *sftpConnectionsCache) Remove(key string) {
-	c.Lock()
-	defer c.Unlock()
-
-	if conn, ok := c.items[key]; ok {
-		delete(c.items, key)
-		logger.Debug(logSenderSFTPCache, "", "removed connection with key %s, active connections: %d", key, len(c.items))
-
-		defer conn.Close()
-	}
-}
-
 func (c *sftpConnectionsCache) Cleanup() {
-	c.RLock()
+	c.Lock()
+
+	var connectionsToClose []*sftpConnection
 
 	for k, conn := range c.items {
 		if val := conn.GetLastActivity(); val.Before(time.Now().Add(-30 * time.Second)) {
-			logger.Debug(conn.logSender, "", "removing inactive connection, last activity %s", val)
-
-			defer func(key string) {
-				c.Remove(key)
-			}(k)
+			delete(c.items, k)
+			logger.Debug(logSenderSFTPCache, "", "removed connection with key %s, last activity %s, active connections: %d",
+				k, val, len(c.items))
+			connectionsToClose = append(connectionsToClose, conn)
 		}
 	}
 
-	c.RUnlock()
+	c.Unlock()
+
+	for _, conn := range connectionsToClose {
+		err := conn.Close()
+		logger.Debug(logSenderSFTPCache, "", "connection closed, err: %v", err)
+	}
 }
