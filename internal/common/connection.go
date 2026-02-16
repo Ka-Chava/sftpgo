@@ -296,6 +296,20 @@ func (c *BaseConnection) setTimes(fsPath string, atime time.Time, mtime time.Tim
 	return false
 }
 
+// getInfoForOngoingUpload returns upload statistics for an upload currently in
+// progress on this connection.
+func (c *BaseConnection) getInfoForOngoingUpload(fsPath string) (os.FileInfo, error) {
+	c.RLock()
+	defer c.RUnlock()
+
+	for _, t := range c.activeTransfers {
+		if t.GetType() == TransferUpload && t.GetFsPath() == fsPath {
+			return vfs.NewFileInfo(t.GetVirtualPath(), false, t.GetSize(), t.GetStartTime(), false), nil
+		}
+	}
+	return nil, os.ErrNotExist
+}
+
 func (c *BaseConnection) truncateOpenHandle(fsPath string, size int64) (int64, error) {
 	c.RLock()
 	defer c.RUnlock()
@@ -952,7 +966,19 @@ func (c *BaseConnection) doStatInternal(virtualPath string, mode int, checkFileP
 		info, err = fs.Stat(c.getRealFsPath(fsPath))
 	}
 	if err != nil {
-		if !fs.IsNotExist(err) {
+		isNotExist := fs.IsNotExist(err)
+		if isNotExist {
+			// This is primarily useful for atomic storage backends, where files
+			// become visible only after they are closed. However, since we may
+			// be proxying (for example) an SFTP server backed by atomic
+			// storage, and this search only inspects transfers active on the
+			// current connection (typically just one), the check is inexpensive
+			// and safe to perform unconditionally.
+			if info, err := c.getInfoForOngoingUpload(fsPath); err == nil {
+				return info, nil
+			}
+		}
+		if !isNotExist {
 			c.Log(logger.LevelWarn, "stat error for path %q: %+v", virtualPath, err)
 		}
 		return nil, c.GetFsError(fs, err)
