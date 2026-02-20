@@ -724,7 +724,11 @@ func updateLoginMetrics(user *dataprovider.User, loginMethod, ip string, err err
 		plugin.Handler.NotifyLogEvent(notifier.LogEventTypeLoginOK, protocol, user.Username, ip, "", nil)
 		common.DelayLogin(nil)
 	} else if err != common.ErrInternalFailure && err != common.ErrNoCredentials {
-		logger.ConnectionFailedLog(user.Username, ip, loginMethod, protocol, err.Error())
+		errorMsg := err.Error()
+		if errors.Is(err, util.ErrNotFound) {
+			errorMsg = "user not found"
+		}
+		logger.ConnectionFailedLog(user.Username, ip, loginMethod, protocol, errorMsg)
 		err = handleDefenderEventLoginFailed(ip, err)
 		logEv := notifier.LogEventTypeLoginFailed
 		if errors.Is(err, util.ErrNotFound) {

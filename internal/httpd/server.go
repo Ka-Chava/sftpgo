@@ -268,7 +268,11 @@ func (s *httpdServer) handleWebClientLoginPost(w http.ResponseWriter, r *http.Re
 
 	user, err := dataprovider.CheckUserAndPass(username, password, ipAddr, protocol)
 	if err != nil {
-		updateLoginMetrics(&user, dataprovider.LoginMethodPassword, ipAddr, err, r)
+		logUser := &user
+		if logUser.Username == "" {
+			logUser = &dataprovider.User{BaseUser: sdk.BaseUser{Username: username}}
+		}
+		updateLoginMetrics(logUser, dataprovider.LoginMethodPassword, ipAddr, err, r)
 		s.renderClientLoginPage(w, r,
 			util.NewI18nError(dataprovider.ErrInvalidCredentials, util.I18nErrorInvalidCredentials))
 		return
@@ -857,7 +861,11 @@ func (s *httpdServer) getUserToken(w http.ResponseWriter, r *http.Request) {
 	user, err := dataprovider.CheckUserAndPass(username, password, ipAddr, protocol)
 	if err != nil {
 		w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
-		updateLoginMetrics(&user, dataprovider.LoginMethodPassword, ipAddr, err, r)
+		logUser := &user
+		if logUser.Username == "" {
+			logUser = &dataprovider.User{BaseUser: sdk.BaseUser{Username: username}}
+		}
+		updateLoginMetrics(logUser, dataprovider.LoginMethodPassword, ipAddr, err, r)
 		sendAPIResponse(w, r, dataprovider.ErrInvalidCredentials, http.StatusText(http.StatusUnauthorized),
 			http.StatusUnauthorized)
 		return
