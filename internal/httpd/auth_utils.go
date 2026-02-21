@@ -304,6 +304,27 @@ func verifyCSRFToken(r *http.Request, csrfTokenAuth *jwt.Signer) error {
 	return checkCSRFTokenRef(r, token)
 }
 
+// verifyCSRFTokenForSetup validates only the form CSRF token (signature, audience, IP).
+// It does not require the login cookie, so the initial admin setup works behind proxies
+// or when cookies are not sent (e.g. SameSite, path, or cross-origin).
+func verifyCSRFTokenForSetup(r *http.Request, csrfTokenAuth *jwt.Signer) error {
+	tokenString := r.Form.Get(csrfFormToken)
+	token, err := jwt.VerifyToken(csrfTokenAuth, tokenString)
+	if err != nil || token == nil {
+		logger.Debug(logSender, "", "error validating CSRF token %q: %v", tokenString, err)
+		return fmt.Errorf("unable to verify form token: %v", err)
+	}
+	if !token.Audience.Contains(tokenAudienceCSRF) {
+		logger.Debug(logSender, "", "error validating CSRF token audience")
+		return errors.New("the form token is not valid")
+	}
+	if err := validateIPForToken(token, util.GetIPFromRemoteAddress(r.RemoteAddr)); err != nil {
+		logger.Debug(logSender, "", "error validating CSRF token IP audience")
+		return errors.New("the form token is not valid")
+	}
+	return nil
+}
+
 func checkCSRFTokenRef(r *http.Request, token *jwt.Claims) error {
 	claims, err := jwt.FromContext(r.Context())
 	if err != nil {

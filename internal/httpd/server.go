@@ -693,7 +693,7 @@ func (s *httpdServer) handleWebAdminSetupPost(w http.ResponseWriter, r *http.Req
 		s.renderAdminSetupPage(w, r, "", util.NewI18nError(err, util.I18nErrorInvalidForm))
 		return
 	}
-	if err := verifyLoginCookieAndCSRFToken(r, s.csrfTokenAuth); err != nil {
+	if err := verifyCSRFTokenForSetup(r, s.csrfTokenAuth); err != nil {
 		s.renderForbiddenPage(w, r, util.NewI18nError(err, util.I18nErrorInvalidCSRF))
 		return
 	}
@@ -1718,8 +1718,7 @@ func (s *httpdServer) setupWebAdminRoutes() {
 		}
 		s.router.Get(webOAuth2RedirectPath, s.handleOAuth2TokenRedirect)
 		s.router.Get(webAdminSetupPath, s.handleWebAdminSetupGet)
-		s.router.With(jwt.Verify(s.csrfTokenAuth, jwt.TokenFromCookie)).
-			Post(webAdminSetupPath, s.handleWebAdminSetupPost)
+		s.router.Post(webAdminSetupPath, s.handleWebAdminSetupPost)
 		if !s.binding.isWebAdminLoginFormDisabled() {
 			s.router.With(jwt.Verify(s.csrfTokenAuth, jwt.TokenFromCookie)).
 				Post(webAdminLoginPath, s.handleWebAdminLoginPost)
