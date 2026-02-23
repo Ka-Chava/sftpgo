@@ -1,0 +1,89 @@
+# Digital Ocean App Platform spec for SFTPGo
+# CI/CD: App is built from this repo. Push to the connected branch to deploy.
+# Initial setup: Connect this repo in DO Apps (Create App -> GitHub -> select Ka-Chava/sftpgo)
+# or: doctl apps create --spec .do/app.yaml (then link GitHub in the Control Panel if needed).
+#
+# Prerequisites:
+# - GitHub repo connected to your DO account; this app linked to Ka-Chava/sftpgo.
+# - Set your public domain in SFTPGO_ALLOWED_HOSTS and configure Cloudflare to proxy to the app URL.
+
+name: sftpgo
+
+region: nyc
+
+# PostgreSQL: user accounts and config persist across deployments
+databases:
+  - name: sftpgo-db
+    engine: PG
+    production: false
+    # For production, use a pre-created cluster:
+    # production: true
+    # cluster_name: your-managed-db-cluster-name
+
+services:
+  - name: web
+    # Build from Git: push to main (or configured branch) triggers build and deploy
+    github:
+      repo: Ka-Chava/sftpgo
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: deploy/Dockerfile
+
+    http_port: 8080
+
+    instance_count: 1
+    instance_size_slug: basic-xxs
+
+    # Health check for the Web Admin / API
+    health_check:
+      http_path: /api/v2/status
+      initial_delay_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+
+    # --- Reverse proxy (Cloudflare) and CSRF-safe behavior ---
+    # Trust X-Forwarded-Proto so the app treats requests as HTTPS (cookies, redirects).
+    # Trust X-Forwarded-Host and restrict allowed_hosts to avoid host-header attacks.
+    # --- Persistence: PostgreSQL (user accounts survive redeploys) ---
+    envs:
+      - key: SFTPGO_HTTPD__BINDINGS__0__PORT
+        value: "8080"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__ENABLED
+        value: "true"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__KEY
+        value: "X-Forwarded-Proto"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__VALUE
+        value: "https"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HOSTS_PROXY_HEADERS__0
+        value: "X-Forwarded-Host"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__0
+        value: "sftpgo.kachava.com"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_REDIRECT
+        value: "true"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_PROXY_HEADER
+        value: "CF-Connecting-IP"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__0
+        value: "0.0.0.0/0"
+        scope: RUN_TIME
+      - key: SFTPGO_DATA_PROVIDER__DRIVER
+        value: "postgres"
+        scope: RUN_TIME
+      - key: SFTPGO_DATA_PROVIDER__CONNECTION_STRING
+        value: ${sftpgo-db.DATABASE_URL}
+        scope: RUN_TIME
+
+# Optional: custom domain (you can also use Cloudflare CNAME to the default *.ondigitalocean.app URL)
+# domains:
+#   - domain: sftpgo.yourdomain.com
+#     type: PRIMARY
+#     zone: yourdomain.com
