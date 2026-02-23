@@ -74,11 +74,16 @@ services:
       - key: SFTPGO_HTTPD__BINDINGS__0__BASE_URL
         value: "https://sftp.kachava.com"
         scope: RUN_TIME
+      # Disable in-app HTTPS redirect; TLS is at Cloudflare/DO. Avoids redirects that can drop session cookie.
       - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_REDIRECT
-        value: "true"
+        value: "false"
         scope: RUN_TIME
+      # Client IP from Cloudflare so setup + login form tokens validate (token audience = client IP)
       - key: SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_PROXY_HEADER
         value: "CF-Connecting-IP"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_HEADER_DEPTH
+        value: "0"
         scope: RUN_TIME
       - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__0
         value: "0.0.0.0/0"

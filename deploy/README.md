@@ -33,7 +33,8 @@ The app spec configures this via:
 - **`client_ip_proxy_header`** – `CF-Connecting-IP` (or `X-Forwarded-For`) for real client IP.
 - **`proxy_allowed`** – IPs allowed to send these headers (e.g. `0.0.0.0/0` when you rely on `allowed_hosts`).
 - **`base_url`** – Public URL of the app (e.g. `https://sftp.kachava.com`) so login and CSRF tokens use the correct origin.
-- **`allowed_hosts`** – Must include the exact domain users visit; a mismatch causes "Form token is invalid" on login.
+- **`allowed_hosts`** – Must include the exact domain users visit; a mismatch causes "Form token is invalid" on login or admin signup.
+- **`client_ip_proxy_header`** – Use **CF-Connecting-IP** when behind Cloudflare so the same client IP is used for form token generation and validation. If "Form token is invalid" persists on setup/login, try **X-Forwarded-For** with **client_ip_header_depth** = **0**.
 
 References: [SFTPGo configuration](https://docs.sftpgo.com/latest/config-file/), [SFTPGo env vars](https://docs.sftpgo.com/2.6/env-vars/).
 
@@ -47,6 +48,57 @@ User and admin data are stored in **PostgreSQL**, not on the container filesyste
 So when you redeploy or scale the app, the same database is used and **user accounts persist**.
 
 For production, use a **managed database** and set `production: true` and `cluster_name` in the `databases` section of `.do/app.yaml`.
+
+## How to connect a database
+
+### Option A: App created from this repo’s app spec
+
+The **`.do/app.yaml`** already defines a PostgreSQL database and wires it to SFTPGo:
+
+- **Database**: `databases` → `name: sftpgo-db`, `engine: PG`
+- **Connection**: the service env `SFTPGO_DATA_PROVIDER__CONNECTION_STRING` is set to `${sftpgo-db.DATABASE_URL}`
+
+When you create the app from this spec (Control Panel → Create App → use this spec, or `doctl apps create --spec deploy/.do/app.yaml`), Digital Ocean provisions the database and injects `DATABASE_URL` into the app. No extra steps.
+
+To confirm: in the app’s **Components** you should see a **Database** (e.g. `sftpgo-db`) and the **web** (or **sftpgo**) service; the service’s env vars will include the database URL binding.
+
+### Option B: Add a database to an existing app (e.g. kca-sftpgo)
+
+If the app was created without a database:
+
+1. **Digital Ocean Control Panel**  
+   - Open **Apps** → your app (e.g. **kca-sftpgo**) → **Settings** (or **Components**).  
+   - **Add Component** → **Database**.  
+   - Choose **PostgreSQL**, name it (e.g. `sftpgo-db`), pick dev or production.  
+   - Create the database.
+
+2. **Wire the database to the app service**  
+   - In the same app, open the **service** (e.g. **sftpgo** or **web**).  
+   - Go to **Settings** → **App-Level Environment Variables** (or the component’s env vars).  
+   - Add or ensure:
+     - **SFTPGO_DATA_PROVIDER__DRIVER** = `postgres`
+     - **SFTPGO_DATA_PROVIDER__CONNECTION_STRING** = the database URL.
+
+   On App Platform, when you add a database component, you can usually **bind** it to the service and then reference it:
+   - Use the binding so the app gets something like `sftpgo-db.DATABASE_URL`, and set:
+     - **SFTPGO_DATA_PROVIDER__CONNECTION_STRING** = `${sftpgo-db.DATABASE_URL}`  
+   - Or copy the **Connection string** from the database component and set **SFTPGO_DATA_PROVIDER__CONNECTION_STRING** to that value (e.g. `postgres://user:pass@host:25060/defaultdb?sslmode=require`).
+
+3. **Redeploy** the app so the new env vars and database are used.
+
+### Option C: Use an external PostgreSQL (e.g. DO Managed Database)
+
+1. Create a **Managed Database** (PostgreSQL) in the same region as the app (e.g. **Databases** in the DO Control Panel).
+2. Get the **connection string** (or host, port, user, password, database name) from the database’s overview/settings.
+3. In your app’s **service** env vars set:
+   - **SFTPGO_DATA_PROVIDER__DRIVER** = `postgres`
+   - **SFTPGO_DATA_PROVIDER__CONNECTION_STRING** = your full URL, e.g.  
+     `postgres://user:password@host:25060/defaultdb?sslmode=require`  
+   (If the password has special characters, URL-encode them or use the **SECRET** type for the value.)
+4. Ensure the app’s egress (outbound access) can reach the database (same VPC / trusted sources if required).
+5. Redeploy.
+
+After a successful connection, SFTPGo will create its tables on first run and user accounts will persist across deployments.
 
 ## CI/CD: Deploy on push
 
