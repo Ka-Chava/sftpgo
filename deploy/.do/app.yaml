@@ -85,11 +85,80 @@ services:
       - key: SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_HEADER_DEPTH
         value: "0"
         scope: RUN_TIME
+      # Cloudflare IP ranges (https://www.cloudflare.com/ips/) — only these IPs may set proxy headers.
+      # On App Platform the connection to the app is from DO's LB; if client IP/headers break, add 0.0.0.0/0 or DO egress IPs.
       - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__0
+        value: "173.245.48.0/20"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__1
+        value: "103.21.244.0/22"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__2
+        value: "103.22.200.0/22"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__3
+        value: "103.31.4.0/22"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__4
+        value: "141.101.64.0/18"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__5
+        value: "108.162.192.0/18"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__6
+        value: "190.93.240.0/20"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__7
+        value: "188.114.96.0/20"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__8
+        value: "197.234.240.0/22"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__9
+        value: "198.41.128.0/17"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__10
+        value: "162.158.0.0/15"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__11
+        value: "104.16.0.0/13"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__12
+        value: "104.24.0.0/14"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__13
+        value: "172.64.0.0/13"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__14
+        value: "131.0.72.0/22"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__15
+        value: "2400:cb00::/32"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__16
+        value: "2606:4700::/32"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__17
+        value: "2803:f800::/32"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__18
+        value: "2405:b500::/32"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__19
+        value: "2405:8100::/32"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__20
+        value: "2a06:98c0::/29"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__21
+        value: "2c0f:f248::/32"
+        scope: RUN_TIME
+      # Allow DigitalOcean load balancer (connection to app is from DO, not Cloudflare)
+      - key: SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__22
         value: "0.0.0.0/0"
         scope: RUN_TIME
       - key: SFTPGO_DATA_PROVIDER__DRIVER
-        value: "postgres"
+        value: "postgresql"
         scope: RUN_TIME
       - key: SFTPGO_DATA_PROVIDER__CONNECTION_STRING
         value: ${sftpgo-db.DATABASE_URL}

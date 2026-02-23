@@ -42,7 +42,7 @@ References: [SFTPGo configuration](https://docs.sftpgo.com/latest/config-file/),
 
 User and admin data are stored in **PostgreSQL**, not on the container filesystem. The app spec adds a database component and sets:
 
-- `SFTPGO_DATA_PROVIDER__DRIVER=postgres`
+- `SFTPGO_DATA_PROVIDER__DRIVER=postgresql`
 - `SFTPGO_DATA_PROVIDER__CONNECTION_STRING=${sftpgo-db.DATABASE_URL}`
 
 So when you redeploy or scale the app, the same database is used and **user accounts persist**.
@@ -76,7 +76,7 @@ If the app was created without a database:
    - In the same app, open the **service** (e.g. **sftpgo** or **web**).  
    - Go to **Settings** → **App-Level Environment Variables** (or the component’s env vars).  
    - Add or ensure:
-     - **SFTPGO_DATA_PROVIDER__DRIVER** = `postgres`
+     - **SFTPGO_DATA_PROVIDER__DRIVER** = `postgresql`
      - **SFTPGO_DATA_PROVIDER__CONNECTION_STRING** = the database URL.
 
    On App Platform, when you add a database component, you can usually **bind** it to the service and then reference it:
@@ -91,7 +91,7 @@ If the app was created without a database:
 1. Create a **Managed Database** (PostgreSQL) in the same region as the app (e.g. **Databases** in the DO Control Panel).
 2. Get the **connection string** (or host, port, user, password, database name) from the database’s overview/settings.
 3. In your app’s **service** env vars set:
-   - **SFTPGO_DATA_PROVIDER__DRIVER** = `postgres`
+   - **SFTPGO_DATA_PROVIDER__DRIVER** = `postgresql`
    - **SFTPGO_DATA_PROVIDER__CONNECTION_STRING** = your full URL, e.g.  
      `postgres://user:password@host:25060/defaultdb?sslmode=require`  
    (If the password has special characters, URL-encode them or use the **SECRET** type for the value.)
