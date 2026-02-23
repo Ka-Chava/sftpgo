@@ -63,8 +63,16 @@ services:
       - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HOSTS_PROXY_HEADERS__0
         value: "X-Forwarded-Host"
         scope: RUN_TIME
+      # Allowed hosts must include the actual domain users visit (e.g. sftp.kachava.com)
       - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__0
+        value: "sftp.kachava.com"
+        scope: RUN_TIME
+      - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__1
         value: "sftpgo.kachava.com"
+        scope: RUN_TIME
+      # Base URL so login/CSRF and cookies use the correct origin (fixes "Form token is invalid")
+      - key: SFTPGO_HTTPD__BINDINGS__0__BASE_URL
+        value: "https://sftp.kachava.com"
         scope: RUN_TIME
       - key: SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_REDIRECT
         value: "true"

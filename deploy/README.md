@@ -32,6 +32,8 @@ The app spec configures this via:
 - **`allowed_hosts`** – set to your public domain(s); requests with other Host headers are rejected.
 - **`client_ip_proxy_header`** – `CF-Connecting-IP` (or `X-Forwarded-For`) for real client IP.
 - **`proxy_allowed`** – IPs allowed to send these headers (e.g. `0.0.0.0/0` when you rely on `allowed_hosts`).
+- **`base_url`** – Public URL of the app (e.g. `https://sftp.kachava.com`) so login and CSRF tokens use the correct origin.
+- **`allowed_hosts`** – Must include the exact domain users visit; a mismatch causes "Form token is invalid" on login.
 
 References: [SFTPGo configuration](https://docs.sftpgo.com/latest/config-file/), [SFTPGo env vars](https://docs.sftpgo.com/2.6/env-vars/).
 
