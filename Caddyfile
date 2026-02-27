@@ -1,0 +1,8 @@
+# Caddy reverse proxy for SFTPGo web admin / API
+# Caddy automatically obtains and renews TLS certs via Let's Encrypt.
+# Handles HTTP→HTTPS redirects automatically.
+# Cloudflare proxies HTTPS to this Droplet; Caddy forwards to SFTPGo on the internal Docker network.
+
+sftp.kachava.com, sftpgo.kachava.com {
+    reverse_proxy sftpgo:8080
+}

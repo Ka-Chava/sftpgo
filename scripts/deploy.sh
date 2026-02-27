@@ -10,7 +10,7 @@ echo "[deploy] Pulling latest code..."
 git pull origin main
 
 echo "[deploy] Rebuilding and restarting containers..."
-docker compose pull
+docker compose pull caddy postgres
 docker compose up -d --build
 
 echo "[deploy] Waiting for services to stabilize..."
