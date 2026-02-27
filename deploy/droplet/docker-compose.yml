@@ -1,0 +1,55 @@
+# SFTPGo on DigitalOcean Droplet
+# - SFTP accessible on port 2022 (public)
+# - Web admin proxied via Caddy on ports 80/443 behind Cloudflare
+# - Connects to existing DO managed PostgreSQL (set connection string in .env)
+#
+# Usage:
+#   cp .env.example .env && vi .env   # set DB connection string
+#   docker compose up -d
+
+services:
+  sftpgo:
+    image: drakkan/sftpgo:v2.6.6
+    restart: unless-stopped
+    ports:
+      - "2022:2022"       # SFTP — open this in ufw and Cloudflare DNS (non-proxied)
+      # Port 8080 is NOT exposed to the host; Caddy reaches it via the internal Docker network
+    env_file: .env        # loads SFTPGO_DATA_PROVIDER__CONNECTION_STRING
+    environment:
+      # SFTP
+      SFTPGO_SFTPD__BINDINGS__0__PORT: "2022"
+      # Web admin / API
+      SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__ENABLED: "true"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__KEY: "X-Forwarded-Proto"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__VALUE: "https"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HOSTS_PROXY_HEADERS__0: "X-Forwarded-Host"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__0: "sftp.kachava.com"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__1: "sftpgo.kachava.com"
+      SFTPGO_HTTPD__BINDINGS__0__BASE_URL: "https://sftp.kachava.com"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_REDIRECT: "false"
+      SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_PROXY_HEADER: "CF-Connecting-IP"
+      SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_HEADER_DEPTH: "0"
+      # Trust any upstream — port 8080 is not exposed publicly; only Caddy (internal Docker network) can reach it
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__0: "0.0.0.0/0"
+      # Database (driver set here; connection string loaded from .env)
+      SFTPGO_DATA_PROVIDER__DRIVER: "postgresql"
+    volumes:
+      - sftpgo_data:/srv/sftpgo   # persists SSH host keys and any local home dirs
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"     # HTTP/3 (QUIC)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # TLS certs (auto-obtained via ACME)
+      - caddy_config:/config
+
+volumes:
+  sftpgo_data:
+  caddy_data:
+  caddy_config:
