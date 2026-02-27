@@ -17,7 +17,7 @@ echo "[deploy] Waiting for services to stabilize..."
 sleep 20
 
 echo "[deploy] Running health check..."
-HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/api/v2/status 2>/dev/null || echo "000")
+HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/healthz 2>/dev/null || echo "000")
 if [ "$HTTP_STATUS" = "200" ]; then
   echo "[deploy] Health check passed (HTTP $HTTP_STATUS). Deployment successful!"
 else
