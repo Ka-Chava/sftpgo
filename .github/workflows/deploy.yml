@@ -22,7 +22,8 @@ jobs:
             cd /opt/sftpgo
 
             echo "[deploy] Pulling latest code..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "[deploy] Rebuilding and restarting containers..."
             docker compose pull
