@@ -1,0 +1,96 @@
+version: '3.9'
+
+# Droplet deployment for SFTPGo.
+# Requires a .env file at repo root with: POSTGRES_PASSWORD=<strong-password>
+# Run: docker compose up -d
+# To redeploy after a push: docker compose up -d --build
+
+services:
+  sftpgo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sftpgo:local
+    container_name: sftpgo
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "2022:2022"
+    environment:
+      # HTTP port (web admin + REST API)
+      SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
+      # Reverse proxy (Cloudflare) — CSRF-safe
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__ENABLED: "true"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__KEY: "X-Forwarded-Proto"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__VALUE: "https"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HOSTS_PROXY_HEADERS__0: "X-Forwarded-Host"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__0: "sftp.kachava.com"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__ALLOWED_HOSTS__1: "sftpgo.kachava.com"
+      SFTPGO_HTTPD__BINDINGS__0__BASE_URL: "https://sftp.kachava.com"
+      SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_REDIRECT: "false"
+      # Client IP from Cloudflare header
+      SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_PROXY_HEADER: "CF-Connecting-IP"
+      SFTPGO_HTTPD__BINDINGS__0__CLIENT_IP_HEADER_DEPTH: "0"
+      # Cloudflare IPv4 ranges (https://www.cloudflare.com/ips/)
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__0: "173.245.48.0/20"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__1: "103.21.244.0/22"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__2: "103.22.200.0/22"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__3: "103.31.4.0/22"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__4: "141.101.64.0/18"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__5: "108.162.192.0/18"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__6: "190.93.240.0/20"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__7: "188.114.96.0/20"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__8: "197.234.240.0/22"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__9: "198.41.128.0/17"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__10: "162.158.0.0/15"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__11: "104.16.0.0/13"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__12: "104.24.0.0/14"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__13: "172.64.0.0/13"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__14: "131.0.72.0/22"
+      # Cloudflare IPv6 ranges
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__15: "2400:cb00::/32"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__16: "2606:4700::/32"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__17: "2803:f800::/32"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__18: "2405:b500::/32"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__19: "2405:8100::/32"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__20: "2a06:98c0::/29"
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__21: "2c0f:f248::/32"
+      # Allow all (catches DO LB / any intermediate hop)
+      SFTPGO_HTTPD__BINDINGS__0__PROXY_ALLOWED__22: "0.0.0.0/0"
+      # PostgreSQL data provider (local sidecar container)
+      SFTPGO_DATA_PROVIDER__DRIVER: "postgresql"
+      SFTPGO_DATA_PROVIDER__CONNECTION_STRING: "host=postgres port=5432 dbname=sftpgo user=sftpgo password=${POSTGRES_PASSWORD} sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - sftpgo_data:/srv/sftpgo
+    networks:
+      - sftpgo_net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: sftpgo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sftpgo
+      POSTGRES_USER: sftpgo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sftpgo_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sftpgo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  sftpgo_data:
+  postgres_data:
+
+networks:
+  sftpgo_net:
+    driver: bridge
